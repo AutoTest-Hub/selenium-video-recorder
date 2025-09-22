@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Selenium Video Recording Test Suite" verbose="1">
+    
+    <test name="Core Video Recording Tests" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VideoRecordingTest">
+                <methods>
+                    <include name="testSingleTabVideoRecording"/>
+                    <include name="testMultiTabVideoRecording"/>
+                    <include name="testManualTabSwitching"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <test name="Video Speed Control Tests" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VideoSpeedTest">
+                <methods>
+                    <include name="testSlowMotionVideo"/>
+                    <include name="testRealTimeVideo"/>
+                    <include name="testVerySlowVideo"/>
+                    <include name="testMultiTabSlowMotion"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+</suite>
