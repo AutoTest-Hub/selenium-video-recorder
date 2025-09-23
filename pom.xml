@@ -142,6 +142,28 @@
             </build>
         </profile>
 
+        <!-- Profile for running challenging real-world tests -->
+        <profile>
+            <id>challenge-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/wait/RealWorldChallengeTest.java</include>
+                                <include>**/wait/PerformanceComparisonTest.java</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <test.timeout>60</test.timeout>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Profile for running only working tests (excludes problematic ones) -->
         <profile>
             <id>stable-tests</id>
