@@ -123,6 +123,25 @@
             </build>
         </profile>
 
+        <!-- Profile for running SmartWait tests -->
+        <profile>
+            <id>wait-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/wait/SmartWaitTest.java</include>
+                                <include>**/wait/SmartWaitDemoTest.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Profile for running only working tests (excludes problematic ones) -->
         <profile>
             <id>stable-tests</id>

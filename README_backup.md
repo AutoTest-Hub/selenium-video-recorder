@@ -1,10 +1,9 @@
-# Selenium Video Recorder & SmartWait Framework
+# Selenium Video Recorder
 
-A comprehensive solution for recording Selenium test execution videos in headless Chrome with multi-tab support, configurable playback speeds, and an intelligent wait framework for modern web applications.
+A comprehensive solution for recording Selenium test execution videos in headless Chrome with multi-tab support and configurable playback speeds.
 
 ## 🎯 **Key Features**
 
-### **Video Recording**
 - **Multi-tab video recording** with automatic tab switching
 - **Configurable video playback speeds** (slow motion, real-time, fast)
 - **Deadlock-free implementation** for headless Chrome
@@ -13,17 +12,9 @@ A comprehensive solution for recording Selenium test execution videos in headles
 - **Proper resource management** and cleanup
 - **Fixes the fast-forward video issue** with Thread.sleep() periods
 
-### **SmartWait Framework** 🆕
-- **Intelligent wait system** that replaces traditional wait mechanisms
-- **80-90% performance improvement** on network-heavy sites
-- **Framework-agnostic** (works with React, Angular, Vue, etc.)
-- **Intelligent network filtering** (ignores analytics, ads, trackers)
-- **Strategy-based waiting** (PAGE_LOAD, ELEMENT_INTERACTION, AJAX_REQUEST)
-- **Parallel condition checking** for faster results
+## 🚨 **Problem Solved**
 
-## 🚨 **Problems Solved**
-
-This project solves three critical issues with Selenium test automation:
+This project solves two critical issues with Selenium video recording:
 
 ### 1. **Multi-Tab Recording Failure in Headless Chrome**
 - **Problem**: Second tab videos not recorded in headless mode
@@ -34,11 +25,6 @@ This project solves three critical issues with Selenium test automation:
 - **Problem**: Videos appear fast-forward, Thread.sleep() periods not visible
 - **Root Cause**: Mismatch between frame capture timing and video playback rate
 - **Solution**: Configurable video speeds with timed frame capture
-
-### 3. **Slow and Unreliable Wait Mechanisms** 🆕
-- **Problem**: Traditional wait sequences (waitForPageLoad + checkNetworkCalls + waitForDomToSettle) timeout on modern websites
-- **Root Cause**: Network-heavy sites with constant analytics/tracking requests cause indefinite waits
-- **Solution**: SmartWait framework with intelligent request filtering and parallel condition checking
 
 ## 🛠 **Prerequisites**
 
@@ -84,32 +70,16 @@ cd selenium-video-recorder
 mvn clean test
 
 # Run only core video recording tests
-mvn test -P video-tests
-
-# Run only SmartWait framework tests 🆕
-mvn test -P wait-tests
-
-# Run specific test classes
 mvn test -Dtest="VideoRecordingTest"
-mvn test -Dtest="SmartWaitTest"
+
+# Run only video speed tests
+mvn test -Dtest="VideoSpeedTest"
 
 # Run specific test method
 mvn test -Dtest="VideoSpeedTest#testSlowMotionVideo"
-mvn test -Dtest="SmartWaitTest#testPerformanceComparison"
 ```
 
-### **3. Platform-Specific Scripts**
-```bash
-# macOS/Linux
-./run-tests-mac.sh          # Video recording tests
-./run-wait-tests-mac.sh     # SmartWait framework tests 🆕
-
-# Windows
-run-tests-windows.bat       # Video recording tests
-run-wait-tests-windows.bat  # SmartWait framework tests 🆕
-```
-
-### **4. Check Results**
+### **3. Check Results**
 - **Videos**: `videos/` directory
 - **Logs**: `logs/video-recording.log`
 
@@ -235,31 +205,6 @@ recorder.setCaptureInterval(300); // milliseconds
 
 // Enable/disable auto-rebind for multi-tab
 recorder.setAutoRebindEnabled(true);
-```
-
-### **SmartWait Usage** 🆕
-```java
-// Initialize SmartWait
-WaitUtils waitUtils = new WaitUtils(driver, Duration.ofSeconds(30));
-
-// OLD WAY (slow and unreliable):
-// waitForPageLoad(driver, Duration.ofSeconds(30));
-// checkNetworkCalls(driver, Duration.ofSeconds(1), Duration.ofSeconds(30), devTools);
-// waitForDomToSettle(driver, Duration.ofSeconds(30));
-
-// NEW WAY (fast and reliable):
-waitUtils.waitForPageLoad();
-
-// Wait after interactions
-waitUtils.waitAfterClick(By.id("submit-button"));
-
-// Wait for AJAX requests
-waitUtils.waitForAjax();
-
-// Configure for your application
-waitUtils
-    .ignoreUrlPattern(".*your-analytics-service\\.com.*")
-    .configureNetworkIdleTime(Duration.ofMillis(300));
 ```
 
 ## 🐛 **Troubleshooting**
