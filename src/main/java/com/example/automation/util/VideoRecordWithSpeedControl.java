@@ -9,7 +9,6 @@ import org.openqa.selenium.devtools.v137.page.Page;
 import org.openqa.selenium.devtools.v137.page.model.ScreencastFrame;
 import org.openqa.selenium.devtools.v137.target.Target;
 import org.openqa.selenium.devtools.v137.target.model.TargetID;
-import org.openqa.selenium.devtools.v137.target.model.TargetInfo;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -31,8 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import java.util.Map;
-
-import static com.example.automation.util.TestBase.*;
 
 /**
  * ENHANCED Selenium video recording with configurable playback speed.
