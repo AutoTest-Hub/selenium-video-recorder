@@ -23,29 +23,7 @@
                     <include name="testSlowMotionVideo"/>
                     <include name="testRealTimeVideo"/>
                     <include name="testVerySlowVideo"/>
-                    <include name="testMultiTabSlowM
-    <!-- Quick Smoke Test Suite -->
-    <test name="Smoke Tests" preserve-order="true" enabled="false">
-        <classes>
-            <class name="com.example.automation.test.VideoRecordingTest">
-                <methods>
-                    <include name="testSingleTabVideoRecording"/>
-                </methods>
-            </class>
-            <class name="com.example.automation.test.FlickeringReproductionTest">
-                <methods>
-                    <include name="testVisualConsistencyValidation"/>
-                </methods>
-            </class>
-            <class name="com.example.automation.test.VisualValidationTest">
-                <methods>
-                    <include name="testFrameSequenceConsistency"/>
-                </methods>
-            </class>
-        </classes>
-    </test>
-    
-</suite>
+                    <include name="testMultiTabSlowMotion"/>
                 </methods>
             </class>
         </classes>
@@ -149,6 +127,27 @@
     <test name="Real-World Challenge Tests" preserve-order="true" enabled="false">  <!-- Disabled by default, enable when testing against real sites -->
         <classes>
             <class name="com.example.automation.test.wait.RealWorldChallengeTest"/>
+        </classes>
+    </test>
+    
+    <!-- Quick Smoke Test Suite -->
+    <test name="Smoke Tests" preserve-order="true" enabled="false">
+        <classes>
+            <class name="com.example.automation.test.VideoRecordingTest">
+                <methods>
+                    <include name="testSingleTabVideoRecording"/>
+                </methods>
+            </class>
+            <class name="com.example.automation.test.FlickeringReproductionTest">
+                <methods>
+                    <include name="testVisualConsistencyValidation"/>
+                </methods>
+            </class>
+            <class name="com.example.automation.test.VisualValidationTest">
+                <methods>
+                    <include name="testFrameSequenceConsistency"/>
+                </methods>
+            </class>
         </classes>
     </test>
     

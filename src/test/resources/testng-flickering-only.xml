@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Flickering Detection Test Suite" verbose="1">
+    
+    <!-- Focused Flickering Tests - Run these to reproduce flickering issues -->
+    <test name="Core Flickering Detection" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.FlickeringReproductionTest">
+                <methods>
+                    <!-- High-priority flickering tests -->
+                    <include name="testRapidDOMChangesFlickering"/>
+                    <include name="testCSSAnimationFlickering"/>
+                    <include name="testRapidTabSwitchingFlickering"/>
+                    <include name="testScrollingFlickering"/>
+                    <include name="testResourceContentionFlickering"/>
+                    <include name="testVisualConsistencyValidation"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Visual Validation for Flickering -->
+    <test name="Visual Flickering Validation" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VisualValidationTest">
+                <methods>
+                    <!-- Visual tests that help identify flickering -->
+                    <include name="testFrameSequenceConsistency"/>
+                    <include name="testAnimationSmoothnessValidation"/>
+                    <include name="testVisualArtifactDetection"/>
+                    <include name="testFrameTimingConsistency"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Stress Tests for Flickering Under Load -->
+    <test name="Flickering Under Stress" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VideoRecordingStressTest">
+                <methods>
+                    <!-- Stress tests that commonly trigger flickering -->
+                    <include name="testHighFrequencyFrameCapture"/>
+                    <include name="testMemoryExhaustionStressTest"/>
+                    <include name="testConcurrentRecordingStress"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Parallel Tests for Race Condition Flickering -->
+    <test name="Race Condition Flickering" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.ParallelVideoRecordingTest">
+                <methods>
+                    <!-- Parallel tests to identify race conditions that cause flickering -->
+                    <include name="testResourceContentionDetection"/>
+                    <include name="testThreadSafetyValidation"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+</suite>
