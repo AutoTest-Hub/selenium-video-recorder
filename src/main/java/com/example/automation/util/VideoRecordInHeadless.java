@@ -8,7 +8,6 @@ import org.openqa.selenium.devtools.v137.page.Page;
 import org.openqa.selenium.devtools.v137.page.model.ScreencastFrame;
 import org.openqa.selenium.devtools.v137.target.Target;
 import org.openqa.selenium.devtools.v137.target.model.TargetID;
-import org.openqa.selenium.devtools.v137.target.model.TargetInfo;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -29,10 +28,9 @@ import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 import java.util.Map;
 
-import static com.example.automation.util.TestBase.*;
 
 /**
- * PRODUCTION-READY Selenium video recording solution for headless Chrome.
+ * Selenium video recording solution for headless Chrome.
  * 
  * Key Features:
  * - Multi-tab video recording with automatic tab switching
