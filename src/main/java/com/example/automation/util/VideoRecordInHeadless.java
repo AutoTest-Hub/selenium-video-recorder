@@ -228,6 +228,10 @@ public class VideoRecordInHeadless {
                 Instant captureStart = Instant.now();
                 
                 try {
+                    if (frameCounter.get() == 0) {
+                        loggerMechanism.info("🎬 First frame received from target: " + targetId + " - screencast is working!");
+                    }
+                    
                     // Wait for next frame using adaptive timing (Linux optimization)
                     if (useLinuxOptimizations) {
                         frameTimer.waitForNextFrame();
@@ -246,6 +250,14 @@ public class VideoRecordInHeadless {
                         } else {
                             loggerMechanism.info("Captured frame " + frameCounter.get() + " from target: " + targetId);
                         }
+                        
+                        // Log first 5 frames and every 10th frame for debugging
+                        if (frameCounter.get() <= 5 || frameCounter.get() % 10 == 0) {
+                            loggerMechanism.info("Frame " + frameCounter.get() + " saved: " + filename + 
+                                " (" + image.getWidth() + "x" + image.getHeight() + ")");
+                        }
+                    } else {
+                        loggerMechanism.error("Failed to decode frame data from target: " + targetId);
                     }
                     
                     // CRITICAL: Acknowledge frame on the correct DevTools session
@@ -271,17 +283,57 @@ public class VideoRecordInHeadless {
             targetDevTools.addListener(Page.screencastFrame(), frameListener);
             loggerMechanism.info("Added frame listener for target: " + targetId);
 
-            // Start screencast on this specific target
-            targetDevTools.send(Page.startScreencast(
-                    Optional.of(Page.StartScreencastFormat.PNG),
-                    Optional.empty(),
-                    Optional.of(1280),
-                    Optional.of(780),
-                    Optional.empty()
-            ));
+            // Start screencast on this specific target with enhanced debugging
+            try {
+                if (useLinuxOptimizations && LinuxHeadlessOptimizer.isHeadlessEnvironment()) {
+                    // Enhanced screencast parameters for Linux headless environments
+                    loggerMechanism.info("Starting screencast with Linux headless optimizations for target: " + targetId);
+                    targetDevTools.send(Page.startScreencast(
+                            Optional.of(Page.StartScreencastFormat.PNG),
+                            Optional.of(80), // Quality setting for CI environments
+                            Optional.of(1280),
+                            Optional.of(720), // Match standard size
+                            Optional.of(30)  // Max frames per second
+                    ));
+                } else {
+                    // Standard screencast parameters
+                    loggerMechanism.info("Starting screencast with standard parameters for target: " + targetId);
+                    targetDevTools.send(Page.startScreencast(
+                            Optional.of(Page.StartScreencastFormat.PNG),
+                            Optional.empty(),
+                            Optional.of(1280),
+                            Optional.of(780),
+                            Optional.empty()
+                    ));
+                }
+                
+                // Give screencast time to initialize
+                Thread.sleep(500);
+                loggerMechanism.info("Screencast initialization completed for target: " + targetId);
+                
+            } catch (Exception e) {
+                loggerMechanism.error("Failed to start screencast for target " + targetId + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Screencast initialization failed", e);
+            }
 
             currentRecordedTargetId.set(targetId);
             loggerMechanism.info("Successfully started recording on target: " + targetId);
+            
+            // Force an initial frame capture for CI environments
+            if (useLinuxOptimizations && LinuxHeadlessOptimizer.isHeadlessEnvironment()) {
+                try {
+                    Thread.sleep(1000); // Allow browser to render
+                    loggerMechanism.info("Forcing initial frame capture in CI environment...");
+                    
+                    // Navigate to ensure page is active (helps trigger screencast)
+                    ((org.openqa.selenium.JavascriptExecutor) driver).executeScript("document.body.style.backgroundColor = 'white';");
+                    Thread.sleep(500);
+                    
+                } catch (Exception e) {
+                    loggerMechanism.warn("Could not force initial frame capture: " + e.getMessage());
+                }
+            }
             
         } catch (Exception e) {
             loggerMechanism.error("Failed to start recording on target " + targetId + ": " + e.getMessage());

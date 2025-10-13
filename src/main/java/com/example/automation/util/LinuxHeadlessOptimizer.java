@@ -36,11 +36,25 @@ public class LinuxHeadlessOptimizer {
         String waylandDisplay = System.getenv("WAYLAND_DISPLAY");
         String xdgSessionType = System.getenv("XDG_SESSION_TYPE");
         
+        // Check for CI environments (GitHub Actions, GitLab CI, etc.)
+        boolean isCIEnvironment = System.getenv("CI") != null ||
+                                System.getenv("GITHUB_ACTIONS") != null ||
+                                System.getenv("GITLAB_CI") != null ||
+                                System.getenv("JENKINS_URL") != null ||
+                                System.getenv("BUILDKITE") != null ||
+                                System.getenv("TRAVIS") != null;
+        
+        // Check for virtual displays (like :99 used in GitHub Actions)
+        boolean isVirtualDisplay = display != null && 
+                                  (display.matches(":9[0-9]") || display.matches(":1[0-9][0-9]"));
+        
         // Check if we're in a headless/remote environment
         return display == null || display.isEmpty() || 
                "headless".equals(xdgSessionType) ||
                System.getenv("SSH_CLIENT") != null ||
-               System.getenv("SSH_TTY") != null;
+               System.getenv("SSH_TTY") != null ||
+               isCIEnvironment ||
+               isVirtualDisplay;
     }
     
     public static ChromeOptions createOptimizedOptions(LoggerMechanism logger) {
