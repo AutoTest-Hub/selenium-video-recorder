@@ -115,30 +115,40 @@ public class LinuxHeadlessOptimizer {
         options.addArguments("--disable-default-apps");
         options.addArguments("--disable-sync");
         
-        // Linux display system specific
+        // Linux display system specific - conservative CI-friendly options
         if (isHeadlessEnvironment()) {
             logger.info("Detected headless/remote environment, applying additional optimizations");
-            options.addArguments("--virtual-time-budget=5000");  // Allow more time for rendering
-            options.addArguments("--disable-ipc-flooding-protection");
+            // Use more conservative options for CI environments to avoid conflicts
             options.addArguments("--disable-component-update");
+            options.addArguments("--disable-background-networking");
+            
+            // Check specifically for CI environments for more aggressive options
+            boolean isCIEnvironment = System.getenv("CI") != null || 
+                                    System.getenv("GITHUB_ACTIONS") != null ||
+                                    System.getenv("GITLAB_CI") != null;
+            if (isCIEnvironment) {
+                logger.info("CI environment detected, applying CI-specific optimizations");
+                options.addArguments("--disable-logging");
+                options.addArguments("--disable-gpu-logging");
+                options.addArguments("--silent");
+                options.addArguments("--log-level=3");
+            }
         }
         
         // Security and network optimizations
         options.addArguments("--disable-web-security");
         options.addArguments("--allow-running-insecure-content");
-        options.addArguments("--disable-features=VizDisplayCompositor");
         options.addArguments("--ignore-certificate-errors");
         options.addArguments("--ignore-ssl-errors");
         options.addArguments("--ignore-certificate-errors-spki-list");
         
-        // Remote debugging configuration
-        options.addArguments("--remote-debugging-port=9222");
+        // Remote debugging configuration - use dynamic port to avoid conflicts
+        options.addArguments("--remote-debugging-port=0");  // Use dynamic port
         options.addArguments("--remote-allow-origins=*");
         
-        // Additional Linux stability options
+        // Additional Linux stability options (removing duplicates)
         options.addArguments("--no-first-run");
         options.addArguments("--no-default-browser-check");
-        options.addArguments("--disable-default-apps");
         options.addArguments("--disable-popup-blocking");
         
         // Performance preferences for Linux
