@@ -8,6 +8,8 @@ import org.openqa.selenium.devtools.v137.page.Page;
 import org.openqa.selenium.devtools.v137.page.model.ScreencastFrame;
 import org.openqa.selenium.devtools.v137.target.Target;
 import org.openqa.selenium.devtools.v137.target.model.TargetID;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.OutputType;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -102,6 +104,13 @@ public class VideoRecordInHeadless {
     private final AdaptiveFrameTiming frameTimer;
     private final boolean isLinuxEnvironment;
     private volatile boolean useLinuxOptimizations = false;
+    
+    // CI environment frame capture (NEW)
+    private final boolean isCIEnvironment;
+    private volatile boolean useScreenshotFallback = false;
+    private ExecutorService screenshotCaptureExecutor;
+    private volatile boolean isRecording = false;
+    private final AtomicInteger screenshotFrameCounter = new AtomicInteger(0);
 
     public VideoRecordInHeadless(LoggerMechanism loggerMechanism, WebDriver driver) {
         this.loggerMechanism = loggerMechanism;
@@ -111,10 +120,26 @@ public class VideoRecordInHeadless {
         this.isLinuxEnvironment = LinuxHeadlessOptimizer.isLinux();
         this.frameTimer = new AdaptiveFrameTiming(loggerMechanism, "VideoRecorder");
         
+        // Initialize CI environment detection
+        this.isCIEnvironment = System.getenv("CI") != null ||
+                              System.getenv("GITHUB_ACTIONS") != null ||
+                              System.getenv("GITLAB_CI") != null ||
+                              System.getenv("JENKINS_URL") != null;
+        
         if (isLinuxEnvironment) {
             this.useLinuxOptimizations = true;
             loggerMechanism.info("Linux environment detected - optimizations enabled");
             loggerMechanism.info(LinuxHeadlessOptimizer.getEnvironmentInfo());
+        }
+        
+        if (isCIEnvironment) {
+            loggerMechanism.info("CI environment detected - screenshot fallback available");
+            // Initialize screenshot capture executor for CI environments
+            screenshotCaptureExecutor = Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "ScreenshotCapture-Thread");
+                t.setDaemon(true);
+                return t;
+            });
         }
 
         // Initialize main DevTools connection ONLY for target discovery
@@ -176,13 +201,34 @@ public class VideoRecordInHeadless {
     /** Start recording the CURRENT tab (call once per test). */
     public void startRecording() throws IOException {
         Files.createDirectories(FRAME_DIR);
-        TargetID currentTargetId = getAnyTopPageTargetId();
-        loggerMechanism.info("Starting recording on initial target: " + currentTargetId);
+        isRecording = true;
         
-        // Start adaptive frame timing
-        frameTimer.startRecording();
-        
-        bindAndStart(currentTargetId);
+        try {
+            TargetID currentTargetId = getAnyTopPageTargetId();
+            loggerMechanism.info("Starting recording on initial target: " + currentTargetId);
+            
+            // Start adaptive frame timing
+            frameTimer.startRecording();
+            
+            bindAndStart(currentTargetId);
+            
+            // Start screenshot fallback if in CI environment
+            if (isCIEnvironment) {
+                loggerMechanism.info("Starting screenshot fallback capture for CI environment");
+                startScreenshotFallback();
+            }
+            
+        } catch (Exception e) {
+            loggerMechanism.error("Error starting DevTools recording: " + e.getMessage());
+            
+            if (isCIEnvironment) {
+                loggerMechanism.info("DevTools failed in CI, switching to screenshot-only mode");
+                useScreenshotFallback = true;
+                startScreenshotFallback();
+            } else {
+                throw e; // Re-throw if not in CI environment
+            }
+        }
     }
 
     /** Manual rebind for the most recently created tab. */
@@ -397,6 +443,11 @@ public class VideoRecordInHeadless {
 
     /** Stop recording and build MP4. */
     public void stopRecordingAndGenerateVideo() throws Exception {
+        // Stop screenshot fallback if running
+        if (isCIEnvironment) {
+            stopScreenshotFallback();
+        }
+        
         // Stop adaptive frame timing and log metrics
         frameTimer.stopRecording();
         
@@ -408,6 +459,11 @@ public class VideoRecordInHeadless {
             loggerMechanism.info("Final frame rate: " + String.format("%.1f", metrics.frameRate) + " fps");
             loggerMechanism.info("Performance status: " + (metrics.isPerformingWell ? "GOOD" : "NEEDS OPTIMIZATION"));
             loggerMechanism.info("======================================");
+        }
+        
+        // Log capture method used
+        if (isCIEnvironment && screenshotFrameCounter.get() > 0) {
+            loggerMechanism.info("CI Environment: Used screenshot-based capture (" + screenshotFrameCounter.get() + " frames)");
         }
         
         try {
@@ -636,5 +692,97 @@ public class VideoRecordInHeadless {
      */
     public boolean isLinuxEnvironment() {
         return isLinuxEnvironment;
+    }
+    
+    /**
+     * Start screenshot-based frame capture as fallback for CI environments
+     */
+    private void startScreenshotFallback() {
+        if (screenshotCaptureExecutor == null) {
+            loggerMechanism.warn("Screenshot capture executor not initialized");
+            return;
+        }
+        
+        screenshotCaptureExecutor.submit(() -> {
+            loggerMechanism.info("Screenshot fallback capture started");
+            
+            // Capture screenshots at ~5 fps (200ms intervals) for CI efficiency
+            while (isRecording) {
+                try {
+                    captureScreenshotFrame();
+                    Thread.sleep(200); // 5 fps
+                } catch (InterruptedException e) {
+                    loggerMechanism.info("Screenshot capture interrupted");
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    loggerMechanism.error("Error capturing screenshot frame: " + e.getMessage());
+                    // Continue capturing despite errors
+                }
+            }
+            
+            loggerMechanism.info("Screenshot fallback capture stopped");
+        });
+    }
+    
+    /**
+     * Capture a single screenshot frame
+     */
+    private void captureScreenshotFrame() {
+        try {
+            if (driver instanceof TakesScreenshot) {
+                byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                
+                if (screenshot != null && screenshot.length > 0) {
+                    // Convert to BufferedImage and save
+                    BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshot));
+                    if (image != null) {
+                        int frameNum = frameCounter.incrementAndGet();
+                        String filename = String.format("frame_%05d.png", frameNum);
+                        Path outputFile = FRAME_DIR.resolve(filename);
+                        ImageIO.write(image, "png", outputFile.toFile());
+                        
+                        // Update screenshot counter for tracking
+                        screenshotFrameCounter.incrementAndGet();
+                        
+                        // Log progress periodically
+                        if (frameNum % 10 == 0) {
+                            loggerMechanism.info("Screenshot frame " + frameNum + " captured: " + filename + 
+                                " (" + image.getWidth() + "x" + image.getHeight() + ")");
+                        }
+                        
+                        // Record timing for adaptive frame timing
+                        if (useLinuxOptimizations) {
+                            frameTimer.recordCaptureDelay(50); // Estimate screenshot delay
+                        }
+                    }
+                }
+            } else {
+                loggerMechanism.warn("WebDriver does not support screenshots");
+            }
+        } catch (Exception e) {
+            loggerMechanism.error("Failed to capture screenshot frame: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Stop screenshot-based recording
+     */
+    private void stopScreenshotFallback() {
+        isRecording = false;
+        
+        if (screenshotCaptureExecutor != null) {
+            screenshotCaptureExecutor.shutdown();
+            try {
+                if (!screenshotCaptureExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                    screenshotCaptureExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                screenshotCaptureExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        loggerMechanism.info("Screenshot fallback stopped. Total screenshot frames: " + screenshotFrameCounter.get());
     }
 }
