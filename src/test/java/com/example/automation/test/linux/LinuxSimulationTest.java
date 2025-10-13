@@ -4,6 +4,7 @@ import com.example.automation.logger.LoggerMechanism;
 import com.example.automation.util.AdaptiveFrameTiming;
 import com.example.automation.util.LinuxHeadlessOptimizer;
 import com.example.automation.util.VideoRecordInHeadless;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -38,6 +39,9 @@ public class LinuxSimulationTest {
         
         // Use standard optimized options (will auto-detect macOS)
         ChromeOptions options = LinuxHeadlessOptimizer.createOptimizedOptions(logger);
+
+        // Ensure ChromeDriver is available
+        WebDriverManager.chromedriver().setup();
         
         driver = new ChromeDriver(options);
         recorder = new VideoRecordInHeadless(logger, driver);

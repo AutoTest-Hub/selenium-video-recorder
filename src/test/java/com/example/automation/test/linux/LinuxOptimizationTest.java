@@ -4,6 +4,7 @@ import com.example.automation.logger.LoggerMechanism;
 import com.example.automation.util.AdaptiveFrameTiming;
 import com.example.automation.util.LinuxHeadlessOptimizer;
 import com.example.automation.util.VideoRecordInHeadless;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -46,6 +47,9 @@ public class LinuxOptimizationTest {
         
         // Validate the options
         LinuxHeadlessOptimizer.validateChromeOptions(options, logger);
+
+        // Ensure ChromeDriver is available
+        WebDriverManager.chromedriver().setup();
         
         driver = new ChromeDriver(options);
         wait = new WebDriverWait(driver, Duration.ofSeconds(10));
