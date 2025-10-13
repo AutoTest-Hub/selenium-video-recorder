@@ -184,7 +184,7 @@ jobs:
         fi
         
     - name: Archive test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: linux-test-results-java${{ matrix.java-version }}
@@ -195,7 +195,7 @@ jobs:
         retention-days: 14
         
     - name: Archive videos
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always() && hashFiles('videos/**') != ''
       with:
         name: linux-test-videos-java${{ matrix.java-version }}
