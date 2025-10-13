@@ -46,11 +46,12 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
+        
+        # Install essential packages first
+        sudo apt-get install -y xvfb ffmpeg fonts-liberation xdg-utils
+        
+        # Install Chrome dependencies with fallback for Ubuntu version compatibility
         sudo apt-get install -y \
-          xvfb \
-          ffmpeg \
-          fonts-liberation \
-          libasound2 \
           libatk-bridge2.0-0 \
           libatk1.0-0 \
           libatspi2.0-0 \
@@ -67,15 +68,29 @@ jobs:
           libxkbcommon0 \
           libxrandr2 \
           libxss1 \
-          libxtst6 \
-          xdg-utils
+          libxtst6 || echo "Some packages may not be available on this Ubuntu version"
+        
+        # Try to install audio library with fallback
+        sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2 || echo "Audio library not available"
           
     - name: Install Chrome
       run: |
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        echo "🔄 Installing Google Chrome..."
+        
+        # Use the official Chrome installation method for Ubuntu 24.04
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable
+        
+        # Verify Chrome installation
+        if command -v google-chrome &> /dev/null; then
+          echo "✅ Chrome installed successfully: $(google-chrome --version)"
+        else
+          echo "❌ Chrome installation failed"
+          exit 1
+        fi
         
     - name: Display environment information
       run: |
