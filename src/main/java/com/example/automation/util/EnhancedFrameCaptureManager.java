@@ -323,39 +323,29 @@ public class EnhancedFrameCaptureManager {
             JavascriptExecutor js = (JavascriptExecutor) driver;
             
             // Use multiple trigger methods for reliability
-            String triggerScript = """
-                (function() {
-                    try {
-                        // Method 1: Subtle style change
-                        if (!window.frameCaptureTrigger) {
-                            window.frameCaptureTrigger = 0;
-                        }
-                        window.frameCaptureTrigger++;
-                        
-                        // Create or update trigger element
-                        var trigger = document.getElementById('selenium-frame-trigger');
-                        if (!trigger) {
-                            trigger = document.createElement('div');
-                            trigger.id = 'selenium-frame-trigger';
-                            trigger.style.cssText = 'position:absolute;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
-                            document.body.appendChild(trigger);
-                        }
-                        
-                        // Subtle change that shouldn't affect visibility but triggers repaint
-                        trigger.setAttribute('data-frame', window.frameCaptureTrigger);
-                        trigger.style.transform = 'translateZ(' + (window.frameCaptureTrigger % 2) + 'px)';
-                        
-                        // Method 2: Force layout recalculation (fallback)
-                        if (window.frameCaptureTrigger % 10 === 0) {
-                            document.body.offsetHeight; // Force layout
-                        }
-                        
-                        return 'ok';
-                    } catch (e) {
-                        return 'error: ' + e.message;
-                    }
-                })();
-            """;
+            String triggerScript = "(function() { " +
+                "try { " +
+                    "if (!window.frameCaptureTrigger) { " +
+                        "window.frameCaptureTrigger = 0; " +
+                    "} " +
+                    "window.frameCaptureTrigger++; " +
+                    "var trigger = document.getElementById('selenium-frame-trigger'); " +
+                    "if (!trigger) { " +
+                        "trigger = document.createElement('div'); " +
+                        "trigger.id = 'selenium-frame-trigger'; " +
+                        "trigger.style.cssText = 'position:absolute;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;'; " +
+                        "document.body.appendChild(trigger); " +
+                    "} " +
+                    "trigger.setAttribute('data-frame', window.frameCaptureTrigger); " +
+                    "trigger.style.transform = 'translateZ(' + (window.frameCaptureTrigger % 2) + 'px)'; " +
+                    "if (window.frameCaptureTrigger % 10 === 0) { " +
+                        "document.body.offsetHeight; " +
+                    "} " +
+                    "return 'ok'; " +
+                "} catch (e) { " +
+                    "return 'error: ' + e.message; " +
+                "} " +
+            "})();";
             
             Object result = js.executeScript(triggerScript);
             

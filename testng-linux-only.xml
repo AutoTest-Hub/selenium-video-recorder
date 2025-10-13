@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+
+<suite name="Linux Optimization Tests Only" verbose="2" parallel="none">
+    
+    <parameter name="browser" value="chrome" />
+    <parameter name="headless" value="true" />
+    
+    <!-- Linux Optimization Tests Only -->
+    <test name="Linux Chrome Optimizations" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.linux.LinuxOptimizationTest">
+                <methods>
+                    <include name="testBasicRecordingWithLinuxOptimizations"/>
+                    <include name="testFrameTimingConsistency"/>
+                    <include name="testMultiTabRecordingOptimization"/>
+                    <include name="testMemoryPressureHandling"/>
+                    <include name="testPerformanceComparison"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+</suite>

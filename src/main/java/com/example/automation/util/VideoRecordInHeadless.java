@@ -27,9 +27,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 import java.util.Map;
-
+import java.time.Instant;
 
 /**
+ * Selenium video recording solution for headless Chrome with Linux optimizations.
+ * 
+ * ENHANCED FEATURES (Linux Flickering Fix):
+ * - Linux-specific Chrome option integration
+ * - Adaptive frame timing for Linux scheduler
+ * - Frame skip detection and compensation
+ * - Platform-aware DevTools session management
+ * - Memory pressure monitoring
+ * 
  * Selenium video recording solution for headless Chrome.
  * 
  * Key Features:
@@ -88,10 +97,25 @@ public class VideoRecordInHeadless {
 
     // Auto-rebind toggle
     private volatile boolean autoRebindEnabled = false;
+    
+    // Linux optimization and adaptive frame timing (NEW)
+    private final AdaptiveFrameTiming frameTimer;
+    private final boolean isLinuxEnvironment;
+    private volatile boolean useLinuxOptimizations = false;
 
     public VideoRecordInHeadless(LoggerMechanism loggerMechanism, WebDriver driver) {
         this.loggerMechanism = loggerMechanism;
         this.driver = driver;
+        
+        // Initialize Linux optimization support
+        this.isLinuxEnvironment = LinuxHeadlessOptimizer.isLinux();
+        this.frameTimer = new AdaptiveFrameTiming(loggerMechanism, "VideoRecorder");
+        
+        if (isLinuxEnvironment) {
+            this.useLinuxOptimizations = true;
+            loggerMechanism.info("Linux environment detected - optimizations enabled");
+            loggerMechanism.info(LinuxHeadlessOptimizer.getEnvironmentInfo());
+        }
 
         // Initialize main DevTools connection ONLY for target discovery
         mainDevTools = ((HasDevTools) driver).getDevTools();
@@ -154,6 +178,10 @@ public class VideoRecordInHeadless {
         Files.createDirectories(FRAME_DIR);
         TargetID currentTargetId = getAnyTopPageTargetId();
         loggerMechanism.info("Starting recording on initial target: " + currentTargetId);
+        
+        // Start adaptive frame timing
+        frameTimer.startRecording();
+        
         bindAndStart(currentTargetId);
     }
 
@@ -195,23 +223,46 @@ public class VideoRecordInHeadless {
             targetDevTools.send(Page.enable(Optional.empty()));
             loggerMechanism.info("Enabled Page domain for target: " + targetId);
 
-            // Create frame listener for this target
+            // Create frame listener for this target with adaptive timing
             java.util.function.Consumer<ScreencastFrame> frameListener = frame -> {
+                Instant captureStart = Instant.now();
+                
                 try {
+                    // Wait for next frame using adaptive timing (Linux optimization)
+                    if (useLinuxOptimizations) {
+                        frameTimer.waitForNextFrame();
+                    }
+                    
                     byte[] decodedBytes = Base64.getDecoder().decode(frame.getData());
                     BufferedImage image = ImageIO.read(new ByteArrayInputStream(decodedBytes));
                     if (image != null) {
                         String filename = String.format("frame_%05d.png", frameCounter.incrementAndGet());
                         Path outputFile = FRAME_DIR.resolve(filename);
                         ImageIO.write(image, "png", outputFile.toFile());
-                        loggerMechanism.info("Captured frame " + frameCounter.get() + " from target: " + targetId);
+                        
+                        if (useLinuxOptimizations) {
+                            loggerMechanism.debug("Captured frame " + frameCounter.get() + " from target: " + targetId + 
+                                " (FR: " + String.format("%.1f", frameTimer.getCurrentFrameRate()) + " fps)");
+                        } else {
+                            loggerMechanism.info("Captured frame " + frameCounter.get() + " from target: " + targetId);
+                        }
                     }
                     
                     // CRITICAL: Acknowledge frame on the correct DevTools session
                     targetDevTools.send(Page.screencastFrameAck(frame.getSessionId()));
                     
+                    // Record capture delay for adaptive timing
+                    if (useLinuxOptimizations) {
+                        long captureDelay = java.time.Duration.between(captureStart, Instant.now()).toMillis();
+                        frameTimer.recordCaptureDelay(captureDelay);
+                    }
+                    
                 } catch (Exception e) {
                     loggerMechanism.error("Error processing screencast frame for target " + targetId + ": " + e.getMessage());
+                    if (useLinuxOptimizations && frameTimer != null) {
+                        // Record failed capture
+                        frameTimer.recordCaptureDelay(1000); // Mark as slow capture
+                    }
                     e.printStackTrace();
                 }
             };
@@ -294,6 +345,19 @@ public class VideoRecordInHeadless {
 
     /** Stop recording and build MP4. */
     public void stopRecordingAndGenerateVideo() throws Exception {
+        // Stop adaptive frame timing and log metrics
+        frameTimer.stopRecording();
+        
+        if (useLinuxOptimizations) {
+            AdaptiveFrameTiming.TimingMetrics metrics = frameTimer.getMetrics();
+            loggerMechanism.info("=== Recording Performance Metrics ===");
+            loggerMechanism.info("Total frames captured: " + metrics.totalFrames);
+            loggerMechanism.info("Frames skipped: " + metrics.framesSkipped);
+            loggerMechanism.info("Final frame rate: " + String.format("%.1f", metrics.frameRate) + " fps");
+            loggerMechanism.info("Performance status: " + (metrics.isPerformingWell ? "GOOD" : "NEEDS OPTIMIZATION"));
+            loggerMechanism.info("======================================");
+        }
+        
         try {
             if (mainDevTools != null) {
                 mainDevTools.send(Page.stopScreencast());
@@ -404,6 +468,13 @@ public class VideoRecordInHeadless {
     public void cleanup() {
         loggerMechanism.info("Starting cleanup of all video recording resources");
         
+        // Stop adaptive frame timing
+        try {
+            frameTimer.stopRecording();
+        } catch (Exception e) {
+            loggerMechanism.warn("Error stopping frame timer: " + e.getMessage());
+        }
+        
         for (TargetID targetId : targetDevToolsMap.keySet()) {
             stopRecordingOnTarget(targetId);
         }
@@ -419,6 +490,10 @@ public class VideoRecordInHeadless {
         targetDevToolsMap.clear();
         targetListeners.clear();
         autoRebindExecutor.shutdown();
+        
+        if (useLinuxOptimizations) {
+            loggerMechanism.info("Linux optimizations disabled for cleanup");
+        }
         
         loggerMechanism.info("Cleaned up all video recording resources");
     }
@@ -459,5 +534,55 @@ public class VideoRecordInHeadless {
     
     public java.util.Set<TargetID> getActiveTargets() {
         return targetDevToolsMap.keySet();
+    }
+    
+    // Linux optimization helper methods
+    
+    /**
+     * Enable or disable Linux-specific optimizations
+     */
+    public void setLinuxOptimizationsEnabled(boolean enabled) {
+        if (!isLinuxEnvironment && enabled) {
+            loggerMechanism.warn("Linux optimizations requested but not running on Linux - ignoring");
+            return;
+        }
+        
+        this.useLinuxOptimizations = enabled;
+        loggerMechanism.info("Linux optimizations " + (enabled ? "enabled" : "disabled"));
+    }
+    
+    /**
+     * Get current frame timing metrics
+     */
+    public AdaptiveFrameTiming.TimingMetrics getTimingMetrics() {
+        return frameTimer.getMetrics();
+    }
+    
+    /**
+     * Check if video recording is performing well
+     */
+    public boolean isPerformingWell() {
+        return frameTimer.isPerformingWell();
+    }
+    
+    /**
+     * Get current frame rate
+     */
+    public double getCurrentFrameRate() {
+        return frameTimer.getCurrentFrameRate();
+    }
+    
+    /**
+     * Check if Linux optimizations are enabled
+     */
+    public boolean isLinuxOptimizationsEnabled() {
+        return useLinuxOptimizations;
+    }
+    
+    /**
+     * Check if running on Linux
+     */
+    public boolean isLinuxEnvironment() {
+        return isLinuxEnvironment;
     }
 }
