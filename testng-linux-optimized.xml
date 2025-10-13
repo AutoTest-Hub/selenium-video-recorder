@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+
+<suite name="Linux-Optimized Video Recording Test Suite" verbose="2" parallel="none">
+    
+    <parameter name="browser" value="chrome" />
+    <parameter name="headless" value="true" />
+    
+    <!-- Linux Optimization Tests -->
+    <test name="Linux Chrome Optimizations" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.linux.LinuxOptimizationTest">
+                <methods>
+                    <include name="testBasicRecordingWithLinuxOptimizations"/>
+                    <include name="testFrameTimingConsistency"/>
+                    <include name="testMultiTabRecordingOptimization"/>
+                    <include name="testMemoryPressureHandling"/>
+                    <include name="testPerformanceComparison"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Original Core Tests -->
+    <test name="Core Video Recording" preserve-order="true" depends-on-methods="">
+        <classes>
+            <class name="com.example.automation.test.VideoRecordingTest">
+                <methods>
+                    <include name="testSingleTabRecording"/>
+                    <include name="testMultiTabRecordingWithAutoRebind"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Flickering Detection Tests -->
+    <test name="Flickering Detection and Reproduction" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.FlickeringReproductionTest">
+                <methods>
+                    <include name="testRapidDOMChangesFlickering"/>
+                    <include name="testCSSAnimationFlickering"/>
+                    <include name="testTabSwitchingFlickering"/>
+                    <include name="testScrollingFlickering"/>
+                    <include name="testAjaxUpdateFlickering"/>
+                    <include name="testMemoryUsageFlickering"/>
+                    <include name="testConcurrentDOMUpdatesFlickering"/>
+                    <include name="testResourceContentionFlickering"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Video Recording Stress Tests -->
+    <test name="Stress Testing" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VideoRecordingStressTest">
+                <methods>
+                    <include name="testMarathonDurationRecording"/>
+                    <include name="testHighFrameCaptureFrequency"/>
+                    <include name="testMultiTabStressRecording"/>
+                    <include name="testMemoryExhaustionDuringRecording"/>
+                    <include name="testFailureRecoveryCapabilities"/>
+                    <include name="testConcurrentRecordingStress"/>
+                    <include name="testPlatformSpecificStress"/>
+                    <include name="testRepeatedCleanupCycles"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Parallel Execution Tests -->
+    <test name="Parallel Recording Tests" parallel="methods" thread-count="3" preserve-order="false">
+        <classes>
+            <class name="com.example.automation.test.ParallelVideoRecordingTest">
+                <methods>
+                    <include name="testParallelSingleTabRecording"/>
+                    <include name="testParallelMultiTabRecording"/>
+                    <include name="testResourceContentionParallel"/>
+                    <include name="testRaceConditionDetection"/>
+                    <include name="testThreadSafetyValidation"/>
+                    <include name="testConcurrentCleanupHandling"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Visual Validation Tests -->
+    <test name="Visual Quality Validation" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VisualValidationTest">
+                <methods>
+                    <include name="testFrameSequenceConsistency"/>
+                    <include name="testColorRenderingAccuracy"/>
+                    <include name="testTextRenderingConsistency"/>
+                    <include name="testAnimationSmoothness"/>
+                    <include name="testVisualArtifactDetection"/>
+                    <include name="testScreenCaptureCompleteness"/>
+                    <include name="testFrameTimingConsistency"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- SmartWait Framework Tests -->
+    <test name="SmartWait Framework" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.wait.SmartWaitTest">
+                <methods>
+                    <include name="testBasicSmartWait"/>
+                    <include name="testSmartWaitWithDynamicContent"/>
+                    <include name="testSmartWaitTimeoutHandling"/>
+                    <include name="testSmartWaitPerformanceOptimization"/>
+                </methods>
+            </class>
+            <class name="com.example.automation.test.wait.PerformanceComparisonTest">
+                <methods>
+                    <include name="testSmartWaitVsTraditionalWait"/>
+                    <include name="testPerformanceUnderLoad"/>
+                    <include name="testMemoryUsageComparison"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Real-World Challenge Tests (Optional - can be slow) -->
+    <test name="Real-World Scenarios" preserve-order="true" enabled="true">
+        <classes>
+            <class name="com.example.automation.test.RealWorldChallengeTest">
+                <methods>
+                    <include name="testComplexSPARecording"/>
+                    <include name="testHeavyAnimationSite"/>
+                    <include name="testPopupAndModalHandling"/>
+                    <include name="testInfiniteScrollRecording"/>
+                    <include name="testMultiFrameRecording"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Demo and Validation Tests -->
+    <test name="Demonstration Tests" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.wait.SmartWaitDemoTest">
+                <methods>
+                    <include name="demonstrateSmartWaitCapabilities"/>
+                    <include name="demonstratePerformanceImprovements"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Speed Control Tests -->
+    <test name="Video Speed Control" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.VideoSpeedTest">
+                <methods>
+                    <include name="testNormalSpeedRecording"/>
+                    <include name="testSlowMotionRecording"/>
+                    <include name="testFastForwardRecording"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+    <!-- Test Listeners and Reporting -->
+    <listeners>
+        <listener class-name="com.example.automation.listeners.VideoRecordingTestListener"/>
+        <listener class-name="org.testng.reporters.EmailableReporter"/>
+    </listeners>
+    
+</suite>

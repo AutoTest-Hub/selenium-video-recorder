@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+
+<suite name="Linux Optimization Simulation Tests" verbose="2" parallel="none">
+    
+    <parameter name="browser" value="chrome" />
+    <parameter name="headless" value="true" />
+    
+    <!-- Linux Simulation Tests (can run on any platform) -->
+    <test name="Linux Optimization Logic Validation" preserve-order="true">
+        <classes>
+            <class name="com.example.automation.test.linux.LinuxSimulationTest">
+                <methods>
+                    <include name="testLinuxDetectionLogic"/>
+                    <include name="testChromeOptionsConfiguration"/>
+                    <include name="testAdaptiveFrameTimingBehavior"/>
+                    <include name="testVideoRecorderIntegration"/>
+                    <include name="testOptimizationConfiguration"/>
+                    <include name="testPerformanceStressBehavior"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+    
+</suite>

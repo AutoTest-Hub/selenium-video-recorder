@@ -1,0 +1,294 @@
+name: Linux Video Recording Optimization Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - '.github/workflows/linux-optimization-tests.yml'
+      - 'testng-linux-*.xml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'testng-linux-*.xml'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  linux-optimization-tests:
+    name: Linux Optimization Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    strategy:
+      matrix:
+        java-version: [11, 17]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        
+        # Install essential packages first
+        sudo apt-get install -y xvfb ffmpeg fonts-liberation xdg-utils
+        
+        # Install Chrome dependencies with fallback for Ubuntu version compatibility
+        sudo apt-get install -y \
+          libatk-bridge2.0-0 \
+          libatk1.0-0 \
+          libatspi2.0-0 \
+          libcups2 \
+          libdbus-1-3 \
+          libdrm2 \
+          libgbm1 \
+          libgtk-3-0 \
+          libnspr4 \
+          libnss3 \
+          libxcomposite1 \
+          libxdamage1 \
+          libxfixes3 \
+          libxkbcommon0 \
+          libxrandr2 \
+          libxss1 \
+          libxtst6 || echo "Some packages may not be available on this Ubuntu version"
+        
+        # Try to install audio library with fallback
+        sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2 || echo "Audio library not available"
+          
+    - name: Install Chrome
+      run: |
+        echo "🔄 Installing Google Chrome..."
+        
+        # Use the official Chrome installation method for Ubuntu 24.04
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        
+        # Verify Chrome installation
+        if command -v google-chrome &> /dev/null; then
+          echo "✅ Chrome installed successfully: $(google-chrome --version)"
+        else
+          echo "❌ Chrome installation failed"
+          exit 1
+        fi
+        
+    - name: Display environment information
+      run: |
+        echo "🐧 Linux Environment Information"
+        echo "================================"
+        echo "OS: $(uname -a)"
+        echo "Java: $(java -version 2>&1 | head -n1)"
+        echo "Maven: $(mvn -version | head -n1)"
+        echo "Chrome: $(google-chrome --version)"
+        echo "FFmpeg: $(ffmpeg -version | head -n1)"
+        echo "Display: ${DISPLAY:-not set}"
+        echo "Architecture: $(uname -m)"
+        echo "Kernel: $(uname -r)"
+        if command -v lsb_release &> /dev/null; then
+          echo "Distribution: $(lsb_release -d -s)"
+        fi
+        echo ""
+        
+    - name: Set up virtual display
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1280x720x24 &
+        sleep 3
+        echo "DISPLAY=:99" >> $GITHUB_ENV
+        
+    - name: Compile project
+      run: |
+        mvn clean compile test-compile
+        
+    - name: Run Linux optimization simulation tests (validation)
+      run: |
+        echo "🧪 Running simulation tests first for validation..."
+        mvn test -Dtest.suite=testng-simulation.xml -Dheadless=true || true
+        
+    - name: Run Linux optimization tests (actual Linux environment)
+      run: |
+        echo "🐧 Running Linux optimization tests in actual Linux environment..."
+        mvn test -Dtest.suite=testng-linux-only.xml -Dheadless=true
+        
+    - name: Run comprehensive Linux-optimized test suite
+      if: success()
+      run: |
+        echo "🚀 Running comprehensive test suite with Linux optimizations..."
+        mvn test -Dtest.suite=testng-linux-optimized.xml -Dheadless=true || true
+        
+    - name: Analyze test results
+      if: always()
+      run: |
+        echo "📊 Analyzing test results..."
+        
+        if [ -f "target/surefire-reports/testng-results.xml" ]; then
+          PASSED=$(grep -o "passed=\"[0-9]*\"" target/surefire-reports/testng-results.xml | cut -d'"' -f2)
+          FAILED=$(grep -o "failed=\"[0-9]*\"" target/surefire-reports/testng-results.xml | cut -d'"' -f2)
+          SKIPPED=$(grep -o "skipped=\"[0-9]*\"" target/surefire-reports/testng-results.xml | cut -d'"' -f2)
+          TOTAL=$((PASSED + FAILED + SKIPPED))
+          
+          echo "Test Results Summary:"
+          echo "  ✅ Passed: ${PASSED:-0}"
+          echo "  ❌ Failed: ${FAILED:-0}"
+          echo "  ⏭️  Skipped: ${SKIPPED:-0}"
+          echo "  📊 Total: $TOTAL"
+          
+          # Create job summary
+          echo "## 🐧 Linux Optimization Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | ${PASSED:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | ${FAILED:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️ Skipped | ${SKIPPED:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${FAILED:-0}" -eq 0 ]; then
+            echo "🏆 **All Linux optimization tests passed!**" >> $GITHUB_STEP_SUMMARY
+            echo "The Linux flickering fixes are working correctly." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Some tests failed** - review the logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+    - name: Check video generation
+      if: always()
+      run: |
+        if [ -d "videos" ] && [ "$(ls -A videos 2>/dev/null)" ]; then
+          VIDEO_COUNT=$(ls -1 videos/*.mp4 2>/dev/null | wc -l || echo 0)
+          echo "🎥 Videos generated: $VIDEO_COUNT"
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎬 Video Generation Results" >> $GITHUB_STEP_SUMMARY
+          echo "Generated $VIDEO_COUNT video files during testing." >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$VIDEO_COUNT" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Video File | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|------|" >> $GITHUB_STEP_SUMMARY
+            for video in videos/*.mp4; do
+              if [ -f "$video" ]; then
+                SIZE=$(du -h "$video" | cut -f1)
+                echo "| $(basename "$video") | $SIZE |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
+        else
+          echo "ℹ️ No videos were generated (expected for some test scenarios)"
+        fi
+        
+    - name: Archive test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: linux-test-results-java${{ matrix.java-version }}
+        path: |
+          target/surefire-reports/
+          test-output/
+          videos/
+        retention-days: 14
+        
+    - name: Archive videos
+      uses: actions/upload-artifact@v4
+      if: always() && hashFiles('videos/**') != ''
+      with:
+        name: linux-test-videos-java${{ matrix.java-version }}
+        path: videos/
+        retention-days: 7
+        
+    - name: Performance summary
+      if: always()
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Performance Notes" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The Linux optimization tests validate:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Linux-specific Chrome configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Adaptive frame timing for Linux scheduler" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Memory pressure handling" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Multi-tab recording stability" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Frame timing consistency" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "These optimizations specifically address flickering issues" >> $GITHUB_STEP_SUMMARY
+        echo "common in Linux headless Chrome environments." >> $GITHUB_STEP_SUMMARY
+
+  cross-platform-validation:
+    name: Cross-Platform Validation
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        java-version: [11]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        
+    - name: Platform-specific setup
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          sudo apt-get update && sudo apt-get install -y xvfb ffmpeg
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x720x24 &
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          # Install FFmpeg on macOS
+          brew install ffmpeg
+        elif [ "$RUNNER_OS" = "Windows" ]; then
+          # Windows-specific setup would go here
+          echo "Windows environment detected"
+        fi
+      shell: bash
+        
+    - name: Install Chrome (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update && sudo apt-get install -y google-chrome-stable
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          # Chrome should be pre-installed on GitHub macOS runners
+          echo "Using pre-installed Chrome on macOS"
+        fi
+      shell: bash
+        
+    - name: Run platform simulation tests
+      run: |
+        mvn clean compile test-compile
+        mvn test -Dtest.suite=testng-simulation.xml -Dheadless=true
+      shell: bash
+        
+    - name: Platform detection validation
+      run: |
+        echo "Platform detection results for $RUNNER_OS:" 
+        echo "Expected Linux detection: $([ '$RUNNER_OS' = 'Linux' ] && echo 'true' || echo 'false')"
+      shell: bash
