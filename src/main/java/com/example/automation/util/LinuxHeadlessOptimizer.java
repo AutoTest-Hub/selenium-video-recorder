@@ -27,8 +27,68 @@ public class LinuxHeadlessOptimizer {
     private static final String OS_ARCH = System.getProperty("os.arch").toLowerCase();
     private static final String OS_VERSION = System.getProperty("os.version");
     
+    // Amazon Linux detection
+    private static final boolean IS_AMAZON_LINUX = isAmazonLinux();
+    
     public static boolean isLinux() {
         return OS_NAME.contains("linux");
+    }
+    
+    /**
+     * Detect Amazon Linux EC2 instances
+     */
+    public static boolean isAmazonLinux() {
+        if (!isLinux()) return false;
+        
+        try {
+            // Check for Amazon Linux identifiers
+            boolean isAmazonEC2 = false;
+            
+            // Method 1: Check /etc/os-release or /etc/system-release
+            java.nio.file.Path osRelease = java.nio.file.Paths.get("/etc/os-release");
+            java.nio.file.Path systemRelease = java.nio.file.Paths.get("/etc/system-release");
+            
+            if (java.nio.file.Files.exists(osRelease)) {
+                try {
+                    String content = java.nio.file.Files.readString(osRelease).toLowerCase();
+                    isAmazonEC2 = content.contains("amazon") || content.contains("amzn");
+                } catch (Exception ignored) {}
+            }
+            
+            if (!isAmazonEC2 && java.nio.file.Files.exists(systemRelease)) {
+                try {
+                    String content = java.nio.file.Files.readString(systemRelease).toLowerCase();
+                    isAmazonEC2 = content.contains("amazon");
+                } catch (Exception ignored) {}
+            }
+            
+            // Method 2: Check EC2 metadata service (if accessible)
+            if (!isAmazonEC2) {
+                try {
+                    // Check for EC2 environment variables
+                    String awsRegion = System.getenv("AWS_REGION");
+                    String awsDefaultRegion = System.getenv("AWS_DEFAULT_REGION");
+                    String ec2InstanceId = System.getenv("EC2_INSTANCE_ID");
+                    
+                    isAmazonEC2 = (awsRegion != null || awsDefaultRegion != null || ec2InstanceId != null);
+                } catch (Exception ignored) {}
+            }
+            
+            // Method 3: Check for AWS CLI presence (common on EC2)
+            if (!isAmazonEC2) {
+                try {
+                    java.nio.file.Path awsCli = java.nio.file.Paths.get("/usr/bin/aws");
+                    java.nio.file.Path awsCli2 = java.nio.file.Paths.get("/usr/local/bin/aws");
+                    isAmazonEC2 = java.nio.file.Files.exists(awsCli) || java.nio.file.Files.exists(awsCli2);
+                } catch (Exception ignored) {}
+            }
+            
+            return isAmazonEC2;
+            
+        } catch (Exception e) {
+            // If any detection method fails, assume it's not Amazon Linux
+            return false;
+        }
     }
     
     public static boolean isHeadlessEnvironment() {
@@ -73,6 +133,7 @@ public class LinuxHeadlessOptimizer {
     
     private static void applyLinuxOptimizations(ChromeOptions options, LoggerMechanism logger) {
         logger.info("OS: " + OS_NAME + ", Arch: " + OS_ARCH + ", Version: " + OS_VERSION);
+        logger.info("Amazon Linux EC2: " + IS_AMAZON_LINUX);
         logger.info("Headless Environment: " + isHeadlessEnvironment());
         
         // Core headless options
@@ -114,6 +175,31 @@ public class LinuxHeadlessOptimizer {
         options.addArguments("--disable-background-networking");
         options.addArguments("--disable-default-apps");
         options.addArguments("--disable-sync");
+        
+        // Amazon Linux EC2-specific optimizations
+        if (IS_AMAZON_LINUX) {
+            logger.info("Applying Amazon Linux EC2-specific optimizations...");
+            
+            // EC2 instances often have limited memory, optimize accordingly
+            options.addArguments("--max_old_space_size=2048");  // Limit V8 memory usage
+            options.addArguments("--disable-background-media-suspend");
+            options.addArguments("--disable-backgrounding-occluded-windows");
+            
+            // EC2 network optimizations
+            options.addArguments("--disable-background-networking");
+            options.addArguments("--disable-sync");
+            options.addArguments("--disable-default-apps");
+            
+            // EC2 storage optimizations (instances may use EBS)
+            options.addArguments("--disk-cache-size=50000000");  // 50MB cache limit
+            options.addArguments("--media-cache-size=50000000");  // 50MB media cache
+            
+            // EC2 CPU optimizations (burstable instances like t2/t3)
+            options.addArguments("--max-threads=4");  // Limit thread usage
+            options.addArguments("--renderer-process-limit=2");  // Limit processes
+            
+            logger.info("Amazon Linux EC2 optimizations applied successfully");
+        }
         
         // Linux display system specific - conservative CI-friendly options
         if (isHeadlessEnvironment()) {
@@ -204,6 +290,26 @@ public class LinuxHeadlessOptimizer {
         info.append("Operating System: ").append(OS_NAME).append("\n");
         info.append("Architecture: ").append(OS_ARCH).append("\n");
         info.append("OS Version: ").append(OS_VERSION).append("\n");
+        info.append("Amazon Linux EC2: ").append(IS_AMAZON_LINUX).append("\n");
+        
+        // EC2-specific information
+        if (IS_AMAZON_LINUX) {
+            info.append("AWS Region: ").append(System.getenv("AWS_REGION")).append("\n");
+            info.append("AWS Default Region: ").append(System.getenv("AWS_DEFAULT_REGION")).append("\n");
+            info.append("EC2 Instance ID: ").append(System.getenv("EC2_INSTANCE_ID")).append("\n");
+            
+            // Check for common EC2 instance metadata
+            try {
+                Runtime runtime = Runtime.getRuntime();
+                int processors = runtime.availableProcessors();
+                long maxMemory = runtime.maxMemory() / 1024 / 1024; // MB
+                info.append("Available Processors: ").append(processors).append("\n");
+                info.append("Max JVM Memory: ").append(maxMemory).append(" MB\n");
+            } catch (Exception e) {
+                info.append("System Info: Unable to retrieve\n");
+            }
+        }
+        
         info.append("Display: ").append(System.getenv("DISPLAY")).append("\n");
         info.append("Wayland Display: ").append(System.getenv("WAYLAND_DISPLAY")).append("\n");
         info.append("XDG Session Type: ").append(System.getenv("XDG_SESSION_TYPE")).append("\n");
