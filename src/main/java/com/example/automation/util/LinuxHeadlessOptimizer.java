@@ -29,9 +29,52 @@ public class LinuxHeadlessOptimizer {
     
     // Amazon Linux detection
     private static final boolean IS_AMAZON_LINUX = isAmazonLinux();
+    private static final String AMAZON_LINUX_VERSION = getAmazonLinuxVersion();
     
     public static boolean isLinux() {
         return OS_NAME.contains("linux");
+    }
+    
+    /**
+     * Get Amazon Linux version (AL2 vs AL2023)
+     */
+    private static String getAmazonLinuxVersion() {
+        if (!isLinux()) return "not-amazon-linux";
+        
+        try {
+            // Check for Amazon Linux version indicators
+            java.nio.file.Path osRelease = java.nio.file.Paths.get("/etc/os-release");
+            java.nio.file.Path systemRelease = java.nio.file.Paths.get("/etc/system-release");
+            
+            if (java.nio.file.Files.exists(osRelease)) {
+                try {
+                    String content = java.nio.file.Files.readString(osRelease).toLowerCase();
+                    if (content.contains("amazon linux release 2") || content.contains("karoo")) {
+                        return "amazon-linux-2";
+                    } else if (content.contains("amazon linux 2023") || content.contains("2023")) {
+                        return "amazon-linux-2023";
+                    } else if (content.contains("amazon") || content.contains("amzn")) {
+                        return "amazon-linux-unknown";
+                    }
+                } catch (Exception ignored) {}
+            }
+            
+            if (java.nio.file.Files.exists(systemRelease)) {
+                try {
+                    String content = java.nio.file.Files.readString(systemRelease).toLowerCase();
+                    if (content.contains("amazon linux release 2")) {
+                        return "amazon-linux-2";
+                    } else if (content.contains("amazon linux 2023")) {
+                        return "amazon-linux-2023";
+                    }
+                } catch (Exception ignored) {}
+            }
+            
+            return "not-amazon-linux";
+            
+        } catch (Exception e) {
+            return "detection-failed";
+        }
     }
     
     /**
@@ -133,7 +176,7 @@ public class LinuxHeadlessOptimizer {
     
     private static void applyLinuxOptimizations(ChromeOptions options, LoggerMechanism logger) {
         logger.info("OS: " + OS_NAME + ", Arch: " + OS_ARCH + ", Version: " + OS_VERSION);
-        logger.info("Amazon Linux EC2: " + IS_AMAZON_LINUX);
+        logger.info("Amazon Linux EC2: " + IS_AMAZON_LINUX + " (" + AMAZON_LINUX_VERSION + ")");
         logger.info("Headless Environment: " + isHeadlessEnvironment());
         
         // Core headless options
@@ -290,7 +333,7 @@ public class LinuxHeadlessOptimizer {
         info.append("Operating System: ").append(OS_NAME).append("\n");
         info.append("Architecture: ").append(OS_ARCH).append("\n");
         info.append("OS Version: ").append(OS_VERSION).append("\n");
-        info.append("Amazon Linux EC2: ").append(IS_AMAZON_LINUX).append("\n");
+        info.append("Amazon Linux EC2: ").append(IS_AMAZON_LINUX).append(" (").append(AMAZON_LINUX_VERSION).append(")\n");
         
         // EC2-specific information
         if (IS_AMAZON_LINUX) {
